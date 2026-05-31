@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  // Basics
+  id           String         @id @default(uuid())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  // Fields
+  email        String         @unique
+  hashPassword String
+  // Relations
+  refreshToken RefreshToken[]
+}
+
+// Child of User
+model RefreshToken {
+  // Basics
+  id               String   @id @default(uuid())
+  createdAt        DateTime @default(now())
+  // Fields
+  hashRefreshToken String   @unique
+  expiresAt        DateTime
+  // Relations
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

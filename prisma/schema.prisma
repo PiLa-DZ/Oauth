@@ -8,28 +8,40 @@ datasource db {
 }
 
 model User {
-  // Basics
-  id           String         @id @default(uuid())
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  // Fields
-  email        String         @unique
-  hashPassword String
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  email        String  @unique
+  hashPassword String? // 🔐 Optional: Will be null for Facebook accounts
+
   // Relations
+  profile      Profile?
   refreshToken RefreshToken[]
 }
 
-// Child of User
+model Profile {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String?
+  avatarUrl String?  @db.VarChar(512)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Parent Relation mapping link block
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model RefreshToken {
-  // Basics
-  id               String   @id @default(uuid())
-  createdAt        DateTime @default(now())
-  // Fields
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
   hashRefreshToken String   @unique
   expiresAt        DateTime
-  // Relations
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

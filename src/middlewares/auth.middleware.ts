@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import jwt, { TokenExpiredError, JsonWebTokenError } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import env from "../lib/env.schema.js";
 import { AppError } from "../errors/app.error.js";
 import z from "zod";
@@ -45,13 +45,13 @@ export const requireAuth = async (
       );
     }
 
-    if (err instanceof TokenExpiredError) {
+    if (err instanceof jwt.TokenExpiredError) {
       return next(
         new AppError("Your session has expired. Please log in again.", 401),
       );
     }
 
-    if (err instanceof JsonWebTokenError) {
+    if (err instanceof jwt.JsonWebTokenError) {
       return next(new AppError("Authentication token tampering detected", 401));
     }
 

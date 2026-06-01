@@ -1,14 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
-import { OAuth2Client } from "google-auth-library";
 import z from "zod";
 import env from "../lib/env.schema.js";
 import db from "../lib/db.js";
 import { AppError } from "../errors/app.error.js";
 import { generateAuthTokens } from "../lib/tokens.js";
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
-
-const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
-const googleAuthSchema = z.object({ token: z.string() });
+import { googleLoginUtility } from "./google.login.utility.js";
 
 export const googleLogin = async (
   req: Request,
@@ -16,15 +13,10 @@ export const googleLogin = async (
   next: NextFunction,
 ) => {
   try {
-    const { token } = googleAuthSchema.parse(req.body);
+    const { token } = z.object({ token: z.string() }).parse(req.body);
 
-    // 🛡️ Cryptographically verify Google ID token authenticity
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: env.GOOGLE_CLIENT_ID,
-    });
+    const payload = await googleLoginUtility(token, env.GOOGLE_CLIENT_ID);
 
-    const payload = ticket.getPayload();
     if (!payload || !payload.email) {
       throw new AppError("Google authentication verification failed", 401);
     }

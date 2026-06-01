@@ -1,10 +1,10 @@
 import express from "express";
-import { googleLogin, getProfile } from "./auth.controller.js";
+import { facebookLogin, getProfile } from "./auth.controller.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/auth/google", googleLogin);
+router.post("/auth/facebook", facebookLogin); // 👈 Route renamed
 router.get("/users/profile", requireAuth, getProfile);
 
 export default router;

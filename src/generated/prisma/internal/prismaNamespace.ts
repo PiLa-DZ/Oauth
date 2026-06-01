@@ -578,6 +578,7 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 
 export const UserScalarFieldEnum = {
   id: 'id',
+  facebookId: 'facebookId',
   email: 'email',
   firstName: 'firstName',
   lastName: 'lastName',
@@ -618,6 +619,7 @@ export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 export const UserOrderByRelevanceFieldEnum = {
   id: 'id',
+  facebookId: 'facebookId',
   email: 'email',
   firstName: 'firstName',
   lastName: 'lastName',

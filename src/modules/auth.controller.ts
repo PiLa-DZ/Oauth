@@ -5,9 +5,9 @@ import db from "../lib/db.js";
 import { AppError } from "../errors/app.error.js";
 import { generateAuthTokens } from "../lib/tokens.js";
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
-import { googleLoginUtility } from "./google.login.utility.js";
+import { facebookLoginUtility } from "./facebook.login.utility.js";
 
-export const googleLogin = async (
+export const facebookLogin = async (
   req: Request,
   res: Response,
   next: NextFunction,
@@ -15,22 +15,21 @@ export const googleLogin = async (
   try {
     const { token } = z.object({ token: z.string() }).parse(req.body);
 
-    const payload = await googleLoginUtility(token, env.GOOGLE_CLIENT_ID);
+    const payload = await facebookLoginUtility(token);
 
-    if (!payload || !payload.email) {
-      throw new AppError("Google authentication verification failed", 401);
-    }
-
-    // Upsert User profile data natively based on verified email signature
-    let user = await db.user.findUnique({ where: { email: payload.email } });
+    // 🛡️ Query uniquely using the immutable facebookId string
+    let user = await db.user.findUnique({
+      where: { facebookId: payload.id },
+    });
 
     if (!user) {
       user = await db.user.create({
         data: {
-          email: payload.email,
-          firstName: payload.given_name || "Google",
-          lastName: payload.family_name || "User",
-          avatarUrl: payload.picture || null,
+          facebookId: payload.id,
+          email: payload.email || null, // Gracefully fallback if phone-registered account
+          firstName: payload.first_name,
+          lastName: payload.last_name || null,
+          avatarUrl: payload.picture?.data.url || null,
         },
       });
     }
@@ -52,12 +51,12 @@ export const googleLogin = async (
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       accessToken: tokens.accessToken,
     });
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };
 
@@ -67,8 +66,6 @@ export const getProfile = async (
   next: NextFunction,
 ) => {
   try {
-    // req.userId = z.string().parse(req.userId);
-
     const user = await db.user.findUnique({
       where: { id: req.userId },
     });
@@ -77,8 +74,8 @@ export const getProfile = async (
       throw new AppError("Profile reference target not found", 404);
     }
 
-    res.status(200).json({ status: "success", data: user });
+    return res.status(200).json({ status: "success", data: user });
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };

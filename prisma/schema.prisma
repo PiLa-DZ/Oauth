@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  firstName String
-  lastName  String?
-  avatarUrl String?  @db.VarChar(512)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  facebookId String   @unique // 👈 The new absolute unique identifier
+  email      String?  @unique // 👈 Turned optional!
+  firstName  String
+  lastName   String?
+  avatarUrl  String?  @db.VarChar(512)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
   refreshTokens RefreshToken[]

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Facebook Passwordless Login</title>
     <script src="tailwind.min.js"></script>
+    <script src="storage.service.js"></script>
   </head>
   <body
     class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center font-sans"
@@ -18,7 +19,6 @@
       <p class="text-xs text-slate-400 mb-6">
         Learn secure Facebook sign-ins natively
       </p>
-
       <div class="flex justify-center mb-6">
         <button
           onclick="launchFacebookLogin()"
@@ -109,14 +109,18 @@
 
         const data = await res.json();
         if (data.status === "success") {
-          localAccessToken = data.accessToken;
+          saveAccessToken(data.accessToken);
           await fetchUserProfile();
         }
       }
 
+      if (readAccessToken()) {
+        fetchUserProfile();
+      }
+
       async function fetchUserProfile() {
         const res = await fetch("/api/users/profile", {
-          headers: { Authorization: `Bearer ${localAccessToken}` },
+          headers: { Authorization: `Bearer ${readAccessToken()}` },
         });
         const result = await res.json();
 
@@ -135,7 +139,7 @@
       }
 
       function logout() {
-        localAccessToken = "";
+        deleteAccessToken();
         window.location.reload();
       }
     </script>

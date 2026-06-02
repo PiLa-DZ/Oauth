@@ -4,8 +4,13 @@ import env from "../lib/env.schema.js";
 import { AppError } from "../errors/app.error.js";
 import z from "zod";
 
-export interface AuthenticatedRequest extends Request {
-  userId: string;
+// 🌐 Global Declaration Merging: Injects userId directly into the Express ecosystem
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string; // Optional because not all server routes are authenticated
+    }
+  }
 }
 
 const jwtPayloadSchema = z.object({
@@ -13,7 +18,7 @@ const jwtPayloadSchema = z.object({
 });
 
 export const requireAuth = async (
-  req: AuthenticatedRequest,
+  req: Request,
   _res: Response,
   next: NextFunction,
 ) => {

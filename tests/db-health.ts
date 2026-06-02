@@ -6,6 +6,7 @@ try {
     data: {
       email: faker.internet.email(),
       firstName: faker.internet.username(),
+      facebookId: faker.internet.password(),
     },
   });
 

@@ -4,7 +4,7 @@ import env from "../lib/env.schema.js";
 import db from "../lib/db.js";
 import { AppError } from "../errors/app.error.js";
 import { generateAuthTokens } from "../lib/tokens.js";
-import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
+// import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 import { facebookLoginUtility } from "./facebook.login.utility.js";
 
 export const facebookLogin = async (
@@ -61,13 +61,19 @@ export const facebookLogin = async (
 };
 
 export const getProfile = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
+    const currentUserId = req.userId;
+
+    if (!currentUserId) {
+      throw new AppError("Authentication required context missing", 401);
+    }
+
     const user = await db.user.findUnique({
-      where: { id: req.userId },
+      where: { id: currentUserId },
     });
 
     if (!user) {

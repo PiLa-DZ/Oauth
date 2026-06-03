@@ -16,7 +16,7 @@
   - [x] Relation Ship to user id `Save user id on Database/Cache`
   - [x] SESSION HIJACKING user-agent `Save device info on Database/Cache`
   - [x] Session expiresAt `Session life`
-  - [x] Store in database `MongoDB | MariaDB`
+  - [x] Store in database `MongoDB/NoSQL`
   - [x] Store in cache (Cache-Aside Architecture) `Redis`
   - [x] Need (Sliding Session) `Like Rifresh Token`
   - [x] Implement Signed Cookies `More security`

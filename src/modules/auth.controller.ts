@@ -5,6 +5,7 @@ import db from "../lib/db.js";
 import { AppError } from "../errors/app.error.js";
 import crypto from "crypto";
 import { facebookLoginUtility } from "./facebook.login.utility.js";
+import cache from "../lib/cache.js"; // 👈 Add Cache Import up top
 
 export const facebookLogin = async (
   req: Request,
@@ -55,6 +56,19 @@ export const facebookLogin = async (
         expiresAt: sessionExpiry,
       },
     });
+
+    // ⚡ NEW CACHE INJECTION LAYER: Duplicate the footprint inside Valkey memory
+    // TTL is calculated in seconds: 24 hours * 60 minutes * 60 seconds = 86400
+    const sessionPayload = JSON.stringify({
+      userId: user.id,
+      userAgent: userAgentFingerprint,
+    });
+
+    await cache.setEx(
+      `session:${hashedSessionId}`,
+      24 * 60 * 60,
+      sessionPayload,
+    );
 
     // 6. 🧼 IMPLEMENT SIGNED COOKIES: Send RAW token out, but sign it cryptographically
     res.cookie("sid", rawSessionToken, {
@@ -119,6 +133,9 @@ export const logout = async (
           where: { id: hashedSessionId },
         })
         .catch(() => {});
+
+      // ⚡ Evict from Valkey In-Memory Key Store
+      await cache.del(`session:${hashedSessionId}`).catch(() => {});
     }
 
     res.clearCookie("sid", {

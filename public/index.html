@@ -94,18 +94,15 @@
           body: JSON.stringify({ token: fbAccessToken }),
         });
 
-        const data = await res.json();
         if (res.ok) {
-          // No tokens to save manually! The cookie was injected into the browser.
           await fetchUserProfile();
         }
       }
 
-      // Check profile instantly on load. If cookie exists, it resolves perfectly.
       fetchUserProfile();
 
       async function fetchUserProfile() {
-        const res = await fetch("/api/users/profile"); // No Authorization header needed!
+        const res = await fetch("/api/users/profile");
         const result = await res.json();
 
         if (result.status === "success") {
@@ -119,16 +116,9 @@
         }
       }
 
-      function logout() {
-        // We will build a backend logout route next to destroy the database session record!
-        document.cookie =
-          "sid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        window.location.reload();
-      }
-
       async function logout() {
         try {
-          // 🌐 Trigger the server-side deletion sequence
+          // Send request to server to destroy database row and cache footprint
           const res = await fetch("/api/auth/logout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -136,7 +126,7 @@
 
           if (!res.ok) {
             console.warn(
-              "Server side session cleanup encounter non-200 state.",
+              "Server side session cleanup encountered non-200 state.",
             );
           }
         } catch (err) {
@@ -145,7 +135,6 @@
             err,
           );
         } finally {
-          // 🧼 Reload the page to drop UI memory states and display the login button clean
           window.location.reload();
         }
       }

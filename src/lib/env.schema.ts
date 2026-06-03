@@ -4,6 +4,7 @@ import z from "zod";
 const envSchema = z.object({
   PORT: z.coerce.number().default(3456),
   DATABASE_URL: z.url(),
+  COOKIE_SECRET: z.string().min(32), // 👈 Added Validation Line
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   FACEBOOK_APP_ID: z.string().min(1), // 👈 Swapped

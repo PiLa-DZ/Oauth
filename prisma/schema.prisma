@@ -9,27 +9,25 @@ datasource db {
 
 model User {
   id         String   @id @default(uuid())
-  facebookId String   @unique // 👈 The new absolute unique identifier
-  email      String?  @unique // 👈 Turned optional!
+  facebookId String   @unique
+  email      String?  @unique
   firstName  String
   lastName   String?
   avatarUrl  String?  @db.VarChar(512)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  // Relations
-  refreshTokens RefreshToken[]
+  // 🔄 Swapped relationship to Sessions
+  sessions Session[]
 }
 
-model RefreshToken {
-  id               String   @id @default(uuid())
-  hashRefreshToken String   @unique
-  expiresAt        DateTime
-  createdAt        DateTime @default(now())
-
-  // Relations
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Session {
+  id        String   @id // 🔒 This will now hold the SHA-256 HASH of the random token
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String // 📱 Stores the browser identity fingerprint for hijacking defense
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }

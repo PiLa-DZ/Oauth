@@ -3,8 +3,7 @@ import z from "zod";
 import env from "../lib/env.schema.js";
 import db from "../lib/db.js";
 import { AppError } from "../errors/app.error.js";
-import { generateAuthTokens } from "../lib/tokens.js";
-// import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
+import crypto from "crypto";
 import { facebookLoginUtility } from "./facebook.login.utility.js";
 
 export const facebookLogin = async (
@@ -14,10 +13,9 @@ export const facebookLogin = async (
 ) => {
   try {
     const { token } = z.object({ token: z.string() }).parse(req.body);
-
     const payload = await facebookLoginUtility(token);
 
-    // 🛡️ Query uniquely using the immutable facebookId string
+    // 1. Find or create user
     let user = await db.user.findUnique({
       where: { facebookId: payload.id },
     });
@@ -26,7 +24,7 @@ export const facebookLogin = async (
       user = await db.user.create({
         data: {
           facebookId: payload.id,
-          email: payload.email || null, // Gracefully fallback if phone-registered account
+          email: payload.email || null,
           firstName: payload.first_name,
           lastName: payload.last_name || null,
           avatarUrl: payload.picture?.data.url || null,
@@ -34,26 +32,42 @@ export const facebookLogin = async (
       });
     }
 
-    const tokens = generateAuthTokens(user.id);
+    // 2. Generate cryptographically strong unique Session Token
+    const rawSessionToken = crypto.randomBytes(32).toString("hex");
 
-    await db.refreshToken.create({
+    // 3. 🛡️ HASH SESSION ID: One-way hash the token before it lands in MariaDB
+    const hashedSessionId = crypto
+      .createHash("sha256")
+      .update(rawSessionToken)
+      .digest("hex");
+
+    const sessionExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Hours
+
+    // 4. 📱 SESSION HIJACKING DEFENSE: Extract user agent string
+    const userAgentFingerprint = req.headers["user-agent"] || "Unknown Engine";
+
+    // 5. Persist Hashed footprint to DB
+    await db.session.create({
       data: {
+        id: hashedSessionId, // Storing only the cryptographic hash
         userId: user.id,
-        hashRefreshToken: tokens.hashRefreshToken,
-        expiresAt: tokens.expiresAt,
+        userAgent: userAgentFingerprint, // Anchoring the session to this device
+        expiresAt: sessionExpiry,
       },
     });
 
-    res.cookie("refreshToken", tokens.rawRefreshToken, {
+    // 6. 🧼 IMPLEMENT SIGNED COOKIES: Send RAW token out, but sign it cryptographically
+    res.cookie("sid", rawSessionToken, {
       httpOnly: true,
       secure: env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      expires: sessionExpiry,
+      signed: true, // 👈 Tells express to append the HMAC signature automatically
     });
 
     return res.status(200).json({
       status: "success",
-      accessToken: tokens.accessToken,
+      message: "Secure hashed session array built successfully",
     });
   } catch (err) {
     return next(err);
@@ -81,6 +95,42 @@ export const getProfile = async (
     }
 
     return res.status(200).json({ status: "success", data: user });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const logout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const rawSessionToken = req.signedCookies["sid"]; // 👈 Switch to signed container
+
+    if (rawSessionToken) {
+      const hashedSessionId = crypto
+        .createHash("sha256")
+        .update(rawSessionToken)
+        .digest("hex");
+
+      await db.session
+        .delete({
+          where: { id: hashedSessionId },
+        })
+        .catch(() => {});
+    }
+
+    res.clearCookie("sid", {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Session terminated cleanly across infrastructure arrays",
+    });
   } catch (err) {
     return next(err);
   }

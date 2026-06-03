@@ -52,7 +52,7 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
-  RefreshToken: 'RefreshToken'
+  Session: 'Session'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -85,15 +85,15 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
-export const RefreshTokenScalarFieldEnum = {
+export const SessionScalarFieldEnum = {
   id: 'id',
-  hashRefreshToken: 'hashRefreshToken',
+  userId: 'userId',
+  userAgent: 'userAgent',
   expiresAt: 'expiresAt',
-  createdAt: 'createdAt',
-  userId: 'userId'
+  createdAt: 'createdAt'
 } as const
 
-export type RefreshTokenScalarFieldEnum = (typeof RefreshTokenScalarFieldEnum)[keyof typeof RefreshTokenScalarFieldEnum]
+export type SessionScalarFieldEnum = (typeof SessionScalarFieldEnum)[keyof typeof SessionScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -124,11 +124,11 @@ export const UserOrderByRelevanceFieldEnum = {
 export type UserOrderByRelevanceFieldEnum = (typeof UserOrderByRelevanceFieldEnum)[keyof typeof UserOrderByRelevanceFieldEnum]
 
 
-export const RefreshTokenOrderByRelevanceFieldEnum = {
+export const SessionOrderByRelevanceFieldEnum = {
   id: 'id',
-  hashRefreshToken: 'hashRefreshToken',
-  userId: 'userId'
+  userId: 'userId',
+  userAgent: 'userAgent'
 } as const
 
-export type RefreshTokenOrderByRelevanceFieldEnum = (typeof RefreshTokenOrderByRelevanceFieldEnum)[keyof typeof RefreshTokenOrderByRelevanceFieldEnum]
+export type SessionOrderByRelevanceFieldEnum = (typeof SessionOrderByRelevanceFieldEnum)[keyof typeof SessionOrderByRelevanceFieldEnum]
 

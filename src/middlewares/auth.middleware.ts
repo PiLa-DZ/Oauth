@@ -1,65 +1,95 @@
 import type { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import env from "../lib/env.schema.js";
+import db from "../lib/db.js";
 import { AppError } from "../errors/app.error.js";
-import z from "zod";
+import env from "../lib/env.schema.js";
+import crypto from "crypto";
 
-// 🌐 Global Declaration Merging: Injects userId directly into the Express ecosystem
 declare global {
   namespace Express {
     interface Request {
-      userId?: string; // Optional because not all server routes are authenticated
+      userId?: string;
     }
   }
 }
 
-const jwtPayloadSchema = z.object({
-  userId: z.string(),
-});
-
 export const requireAuth = async (
   req: Request,
-  _res: Response,
+  res: Response,
   next: NextFunction,
 ) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new AppError("Authorization credentials missing", 401);
+    // 🛡️ Reading from signed cookies array container instead
+    const rawSessionToken = req.signedCookies["sid"];
+
+    if (!rawSessionToken) {
+      throw new AppError(
+        "Session container missing or cookie signature tampered",
+        401,
+      );
     }
 
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      throw new AppError("Malformed authorization token structure", 401);
+    // 1. Re-hash the raw incoming token to see if we can locate its record
+    const hashedSessionId = crypto
+      .createHash("sha256")
+      .update(rawSessionToken)
+      .digest("hex");
+
+    const session = await db.session.findUnique({
+      where: { id: hashedSessionId },
+    });
+
+    if (!session) {
+      throw new AppError("Invalid or revoked session context", 401);
     }
 
-    const rowPayload = jwt.verify(token, env.JWT_ACCESS_SECRET);
-    const decoded = jwtPayloadSchema.parse(rowPayload);
+    // 2. Guard: Check if the session has expired
+    if (new Date() > session.expiresAt) {
+      await db.session
+        .delete({ where: { id: hashedSessionId } })
+        .catch(() => {});
+      throw new AppError("Your session has expired. Please log in again.", 401);
+    }
 
-    req.userId = decoded.userId;
+    // 3. 📱 SESSION HIJACKING DEFENSE: Validate that the User-Agent has not shifted
+    const currentDeviceAgent = req.headers["user-agent"] || "Unknown Engine";
+    if (session.userAgent !== currentDeviceAgent) {
+      // High alert: Cookie stolen and used on an unauthorized device architecture!
+      await db.session
+        .delete({ where: { id: hashedSessionId } })
+        .catch(() => {});
 
+      res.clearCookie("sid", {
+        httpOnly: true,
+        secure: env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+
+      throw new AppError(
+        "Security alert: Device footprint shift detected. Session closed.",
+        401,
+      );
+    }
+
+    // 4. 🏎️ SLIDING SESSION MAINTENANCE
+    const newSessionExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await db.session.update({
+      where: { id: hashedSessionId },
+      data: { expiresAt: newSessionExpiry },
+    });
+
+    res.cookie("sid", rawSessionToken, {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "strict",
+      expires: newSessionExpiry,
+      signed: true, // 👈 Maintain signature wrapper through rolling updates
+    });
+
+    req.userId = session.userId;
     return next();
   } catch (err) {
-    if (err instanceof AppError) {
-      return next(err);
-    }
-
-    if (err instanceof z.ZodError) {
-      return next(
-        new AppError("Invalid token structure parameters", 400, err.issues),
-      );
-    }
-
-    if (err instanceof jwt.TokenExpiredError) {
-      return next(
-        new AppError("Your session has expired. Please log in again.", 401),
-      );
-    }
-
-    if (err instanceof jwt.JsonWebTokenError) {
-      return next(new AppError("Authentication token tampering detected", 401));
-    }
-
-    return next(new AppError("Internal security subsystem failure", 500));
+    if (err instanceof AppError) return next(err);
+    return next(new AppError("Internal session security failure", 500));
   }
 };
